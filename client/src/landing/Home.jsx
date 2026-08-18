@@ -84,15 +84,15 @@ function Home() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4">
-                <a
-                  href="#collection"
+                <Link
+                  to="/products"
                   className="rounded bg-amber-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-500"
                 >
                   EXPLORE COLLECTION
-                </a>
+                </Link>
 
                 <Link
-                  to="/booking"
+                  to="/appointment"
                   className="rounded border border-white px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-slate-950"
                 >
                   BOOK APPOINTMENT

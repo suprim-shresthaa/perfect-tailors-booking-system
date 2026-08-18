@@ -9,13 +9,22 @@ const API_URL = "http://localhost:5000/api/appointments";
 function Appointment() {
   const [searchParams] = useSearchParams();
 
+  // If appointment comes from a product page:
+  // /appointment?product=Coat
+  // productName will be "Coat"
+  //
+  // If appointment comes from Home/Dashboard:
+  // /appointment
+  // productName will be ""
   const productName = searchParams.get("product") || "";
 
   const [form, setForm] = useState({
     name: "",
     phone: "",
     date: "",
-    time: "",
+    hour: "",
+    minute: "",
+    period: "AM",
     notes: "",
   });
 
@@ -37,10 +46,10 @@ function Appointment() {
         ""
       );
 
-      setForm({
-        ...form,
+      setForm((current) => ({
+        ...current,
         name: onlyLettersAndSpaces,
-      });
+      }));
 
       return;
     }
@@ -49,18 +58,18 @@ function Appointment() {
     if (name === "phone") {
       const onlyNumbers = value.replace(/\D/g, "");
 
-      setForm({
-        ...form,
+      setForm((current) => ({
+        ...current,
         phone: onlyNumbers.slice(0, 10),
-      });
+      }));
 
       return;
     }
 
-    setForm({
-      ...form,
+    setForm((current) => ({
+      ...current,
       [name]: value,
-    });
+    }));
   };
 
   // =====================================================
@@ -73,7 +82,10 @@ function Appointment() {
     setError("");
     setSubmitted(false);
 
-    // CHECK PHONE
+    // =====================================================
+    // VALIDATE PHONE
+    // =====================================================
+
     if (!/^\d{10}$/.test(form.phone)) {
       setError(
         "Phone number must contain exactly 10 digits."
@@ -81,7 +93,10 @@ function Appointment() {
       return;
     }
 
-    // CHECK NAME
+    // =====================================================
+    // VALIDATE NAME
+    // =====================================================
+
     if (!/^[a-zA-Z\s]+$/.test(form.name.trim())) {
       setError(
         "Name can contain letters and spaces only."
@@ -89,20 +104,33 @@ function Appointment() {
       return;
     }
 
-    // CHECK DATE
+    // =====================================================
+    // VALIDATE DATE
+    // =====================================================
+
     if (!form.date) {
       setError("Please select an appointment date.");
       return;
     }
 
-    // CHECK TIME
-    if (!form.time) {
+    // =====================================================
+    // VALIDATE TIME
+    // =====================================================
+
+    if (!form.hour || !form.minute || !form.period) {
       setError("Please select an appointment time.");
       return;
     }
 
     try {
       setLoading(true);
+
+      // =====================================================
+      // CREATE TIME
+      // Example: 10:30 PM
+      // =====================================================
+
+      const appointmentTime = `${form.hour}:${form.minute} ${form.period}`;
 
       // =====================================================
       // DATA SENT TO BACKEND
@@ -113,7 +141,7 @@ function Appointment() {
         name: form.name.trim(),
         phone: form.phone,
         date: form.date,
-        time: form.time,
+        time: appointmentTime,
         notes: form.notes.trim(),
         status: "Pending",
       };
@@ -124,7 +152,7 @@ function Appointment() {
       );
 
       // =====================================================
-      // SEND TO MONGODB THROUGH BACKEND
+      // SEND TO BACKEND
       // =====================================================
 
       const response = await fetch(API_URL, {
@@ -137,7 +165,24 @@ function Appointment() {
         body: JSON.stringify(appointmentData),
       });
 
-      const data = await response.json();
+      // =====================================================
+      // READ RESPONSE SAFELY
+      // =====================================================
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      let data;
+
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+
+        throw new Error(
+          `Server returned an unexpected response (${response.status}).`
+        );
+      }
 
       console.log("Backend response:", data);
 
@@ -147,7 +192,8 @@ function Appointment() {
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create appointment."
+          data.message ||
+            "Failed to create appointment."
         );
       }
 
@@ -162,12 +208,17 @@ function Appointment() {
 
       setSubmitted(true);
 
-      // Clear form
+      // =====================================================
+      // CLEAR FORM
+      // =====================================================
+
       setForm({
         name: "",
         phone: "",
         date: "",
-        time: "",
+        hour: "",
+        minute: "",
+        period: "AM",
         notes: "",
       });
 
@@ -177,14 +228,35 @@ function Appointment() {
         err
       );
 
-      setError(
-        err.message ||
-          "Something went wrong. Please try again."
-      );
+      // Handle internet/backend connection problem
+      if (
+        err.message === "Failed to fetch"
+      ) {
+        setError(
+          "Unable to connect to the server. Please make sure the backend server is running on port 5000."
+        );
+      } else {
+        setError(
+          err.message ||
+            "Something went wrong. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // =====================================================
+  // TODAY'S DATE
+  // =====================================================
+
+  const today = new Date()
+    .toISOString()
+    .split("T")[0];
+
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -335,53 +407,136 @@ function Appointment() {
             </div>
 
             {/* ================================================= */}
-            {/* DATE + TIME */}
+            {/* DATE */}
             {/* ================================================= */}
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div>
 
-              {/* DATE */}
+              <label className="mb-2 block text-sm font-medium">
+                Appointment Date *
+              </label>
 
-              <div>
+              <input
+                required
+                type="date"
+                name="date"
+                value={form.date}
+                onChange={handleChange}
+                min={today}
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500"
+              />
 
-                <label className="mb-2 block text-sm font-medium">
-                  Appointment Date *
-                </label>
+            </div>
 
-                <input
+            {/* ================================================= */}
+            {/* TIME */}
+            {/* ================================================= */}
+
+            <div>
+
+              <label className="mb-2 block text-sm font-medium">
+                Preferred Time *
+              </label>
+
+              <div className="grid grid-cols-3 gap-2">
+
+                {/* HOUR */}
+
+                <select
                   required
-                  type="date"
-                  name="date"
-                  value={form.date}
-                  onChange={handleChange}
-                  min={
-                    new Date()
-                      .toISOString()
-                      .split("T")[0]
+                  value={form.hour}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      hour: e.target.value,
+                    }))
                   }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500"
-                />
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-amber-500"
+                >
 
-              </div>
+                  <option value="">
+                    Hour
+                  </option>
 
-              {/* TIME */}
+                  {Array.from(
+                    { length: 12 },
+                    (_, index) => {
+                      const hour = String(
+                        index + 1
+                      ).padStart(2, "0");
 
-              <div>
+                      return (
+                        <option
+                          key={hour}
+                          value={hour}
+                        >
+                          {hour}
+                        </option>
+                      );
+                    }
+                  )}
 
-                <label className="mb-2 block text-sm font-medium">
-                  Preferred Time *
-                </label>
+                </select>
 
-                <input
+                {/* MINUTE */}
+
+                <select
                   required
-                  type="time"
-                  name="time"
-                  value={form.time}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-amber-500"
-                />
+                  value={form.minute}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      minute: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-amber-500"
+                >
+
+                 <option value="">
+  Minute
+</option>
+
+{Array.from({ length: 60 }, (_, index) => {
+  const minute = String(index).padStart(2, "0");
+
+  return (
+    <option key={minute} value={minute}>
+      {minute}
+    </option>
+  );
+})}
+
+                </select>
+
+                {/* AM / PM */}
+
+                <select
+                  required
+                  value={form.period}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      period: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-amber-500"
+                >
+
+                  <option value="AM">
+                    AM
+                  </option>
+
+                  <option value="PM">
+                    PM
+                  </option>
+
+                </select>
 
               </div>
+
+              <p className="mt-2 text-xs text-gray-400">
+                Select your preferred time in AM/PM format.
+              </p>
 
             </div>
 
@@ -407,6 +562,27 @@ function Appointment() {
             </div>
 
             {/* ================================================= */}
+            {/* APPOINTMENT SUMMARY */}
+            {/* ================================================= */}
+
+            {form.hour &&
+              form.minute &&
+              form.period && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+
+                  <p className="text-sm text-gray-500">
+                    Selected appointment time
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold text-amber-700">
+                    {form.hour}:{form.minute}{" "}
+                    {form.period}
+                  </p>
+
+                </div>
+              )}
+
+            {/* ================================================= */}
             {/* SUBMIT */}
             {/* ================================================= */}
 
@@ -419,9 +595,11 @@ function Appointment() {
                   : "bg-amber-600 hover:bg-amber-500"
               }`}
             >
+
               {loading
                 ? "Sending Appointment..."
                 : "Request Appointment"}
+
             </button>
 
           </form>
@@ -437,4 +615,3 @@ function Appointment() {
 }
 
 export default Appointment;
-
