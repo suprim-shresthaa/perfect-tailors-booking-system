@@ -20,6 +20,8 @@ import ProductDetails from "./components/ProductDetails.jsx";
 import Cart from "./components/Cart.jsx";
 import Appointment from "./components/Appointment.jsx";
 import Checkout from "./components/Checkout.jsx";
+import AdminOrders from "./admin/AdminOrders.jsx";
+import Appointments from "./admin/Appointments.jsx";
 
 function App() {
   return (
@@ -39,11 +41,10 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/products" element={<AdminProducts />} />
-        <Route path="/admin/products/add" element={<AdminAddProduct />}
-        />
-        <Route path="/admin/products/edit/:id" element={<AdminEditProduct />}
-        />
-
+        <Route path="/admin/products/add" element={<AdminAddProduct />}/>
+        <Route path="/admin/products/edit/:id" element={<AdminEditProduct />}/>
+        <Route path="/admin/orders" element={<AdminOrders />} />
+        <Route path="/admin/appointments" element={<Appointments />} />
 
         {/* ================= PRODUCTS ================= */}
 
